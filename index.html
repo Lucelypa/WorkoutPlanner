@@ -555,6 +555,12 @@
 
   <div class="section-title">📊 Historique semaines</div>
   <div id="hist-list"></div>
+
+  <div class="section-title">💾 Export</div>
+  <button onclick="exportCSV()" style="width:100%;padding:16px;border-radius:16px;border:none;background:linear-gradient(135deg,#3b82f6,#1d4ed8);color:#fff;font-family:var(--font-display);font-size:20px;letter-spacing:1px;cursor:pointer;margin-bottom:8px;display:flex;align-items:center;justify-content:center;gap:10px;touch-action:manipulation;">
+    📊 Exporter en CSV
+  </button>
+  <div style="font-size:11px;color:var(--muted);text-align:center;margin-bottom:24px">Ouvre dans Excel, Numbers ou Google Sheets</div>
 </div>
 
 <!-- Bottom Nav -->
@@ -880,6 +886,52 @@ function showToast(msg) {
   t.textContent = msg;
   t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ── EXPORT CSV ───────────────────────────────────────────────────────────────
+function exportCSV() {
+  const rows = [];
+
+  // Header
+  rows.push(['Séance','Semaine','Exercice','Matériel','Série 1 kg','Série 1 reps','Série 2 kg','Série 2 reps','Série 3 kg','Série 3 reps','Ressenti','Complété','Poids corps (kg)','Notes'].join(';'));
+
+  ['a','b'].forEach(side => {
+    const label = side === 'a' ? 'Séance A' : 'Séance B';
+    for (let w = 1; w <= NUM_WEEKS; w++) {
+      const wk = `w${w}`;
+      const wkData = state.weeks[side][wk] || {};
+      const doneList = state.done[side][wk] || [];
+      const note = (state.notes[side][wk] || '').replace(/;/g,'|').replace(/\n/g,' ');
+
+      // Weight for this week (find closest date)
+      const wKeys = Object.keys(state.weights).sort();
+      const wVal = wKeys.length >= w ? (state.weights[wKeys[Math.min(w-1, wKeys.length-1)]] || '') : '';
+
+      EXERCISES[side].forEach((ex, i) => {
+        const d = wkData[i] || {};
+        const isDone = doneList.includes(i) ? 'Oui' : 'Non';
+        rows.push([
+          label, `Semaine ${w}`, ex.name, ex.mat,
+          d.s1kg||'', d.s1r||'',
+          d.s2kg||'', d.s2r||'',
+          d.s3kg||'', d.s3r||'',
+          d.ressenti||'', isDone,
+          i === 0 ? wVal : '',
+          i === 0 ? note : ''
+        ].join(';'));
+      });
+    }
+  });
+
+  const csv = '\uFEFF' + rows.join('\n'); // BOM for Excel UTF-8
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `progression_sport_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('✅ Export CSV téléchargé !');
 }
 
 // ── INIT ─────────────────────────────────────────────────────────────────────
